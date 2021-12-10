@@ -1,0 +1,57 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Home
+{% endblock %}
+
+{% block main %}
+    <h2>Portfolio</h2>
+    <form>
+    <table>
+        <thead>
+            <tr>
+                <th>Action</th>
+                <th>Symbol</th>
+                <th>Shares</th>
+                <th>Price</th>
+                <th>Market Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Loop through all stocks in the portfolio -->
+            {% for stock in portfolio %}
+                <tr>
+                    <td>
+                        <button type="submit" formaction="/buy" class="btn btn-success" name="symbol"
+                            value={{ stock.symbol }}>Buy</button>
+                        <button type="submit" formaction="/sell" class="btn btn-danger" name="symbol"
+                            value={{ stock.symbol }}>Sell</button>
+                    </td>
+                    <td><abbr title="{{ stock.name }}">{{ stock.symbol }}</abbr></td>
+                    <td>{{ stock.shares | commas }}</td>
+                    <td>{{ stock.price | usd }}</td>
+                    <td>{{ stock.value | usd }}</td>
+                </tr>
+            {% endfor %}
+            <tr>
+                <td>
+                    <button type="submit" formaction="/deposit" class="btn btn-success">Deposit</button>
+                </td>
+                <td>Cash</td>
+                <td />
+                <td />
+                <td>{{ cash | usd }}</td>
+            </tr>
+            <tr>
+                <td />
+                <td><b>TOTAL</b></td>
+                <td />
+                <td />
+                <td><b>{{ totalMarketValue | usd }}</b></td>
+            </tr>
+        </tbody>
+    </table>
+    <br />
+    <p>Your portfolio's total Gain/Loss is <b>{{ totalGainLoss | cash_flow }}</b></p>
+    </form>
+{% endblock %}

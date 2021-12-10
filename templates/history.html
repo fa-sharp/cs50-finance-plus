@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    History
+{% endblock %}
+
+{% block main %}
+    <h2>Transaction History</h2>
+    <form action="/history" method="post">
+        <div>
+        {% if hasPreviousPage %}
+            <button button class="btn btn-primary" type="submit" name=page value="{{ currentPage - 1 }}">
+                Previous Page
+            </button>
+        {% endif %}
+        {% if hasNextPage %}
+            <button button class="btn btn-primary" type="submit" name=page value="{{ currentPage + 1 }}">
+                Next Page
+            </button>
+        {% endif %}
+        </div>
+        <input name="startBalances" value="{{ startBalances | tojson | forceescape }}" hidden />
+    </form>
+    <form action="/history" method="post">
+
+
+    </form>
+    <table>
+        <thead>
+            <tr>
+                <th>Date/Time (UTC)</th>
+                <th>Action</th>
+                <th>Symbol</th>
+                <th>Shares</th>
+                <th>Price</th>
+                <th>Total</th>
+                <th>Cash Balance</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Loop through all transactions -->
+            {% for tx in transactions %}
+                <tr>
+                    <td>{{ tx.date }}, {{ tx.time }}</td>
+                    <td>{{ tx.action }}</td>
+                    <td>{{ tx.symbol }}</td>
+                    <td>{{ '' if (tx.shares == 0) else tx.shares | abs | commas }}</td>
+                    <td>{{ tx.price | usd }}</td>
+                    <td>{{ tx.total | cash_flow }}</td>
+                    <td>{{ tx.cashBalance | usd }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

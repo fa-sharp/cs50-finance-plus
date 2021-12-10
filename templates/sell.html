@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Sell
+{% endblock %}
+
+{% block main %}
+    <h2>Sell</h2>
+    <p>Select the stock and enter the number of shares you want to sell. Please don't enter a negative number.</p>
+    <form action="/sell" method="post">
+        <div class="form-group">
+            <select class="form-control" name="symbol" autofocus>
+                <option value="" disabled {{ 'selected' if symbol == "" }}>Select a stock</option>
+                <!-- Loop through all owned stocks -->
+                {% for stock in portfolio %}
+                    <option value="{{ stock.symbol }}" {{ 'selected' if symbol == stock.symbol }}>
+                        {{ stock.symbol }} ({{ stock.shares | commas }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <input type="number" class="form-control" name="shares" placeholder="Number of shares" autocomplete="off">
+        </div>
+        <button class="btn btn-primary" type="submit">Sell</button>
+    </form>
+{% endblock %}

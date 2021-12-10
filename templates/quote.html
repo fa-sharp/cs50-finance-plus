@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Quote
+{% endblock %}
+
+{% block main %}
+    <h2>Quote</h2>
+    <form action="/quote" method="post">
+        <div class="form-group">
+            <input class="form-control" name="symbol" placeholder="Symbol (e.g. AAPL)" autofocus>
+        </div>
+        <button class="btn btn-primary" type="submit">Quote</button>
+    </form>
+
+    {% if symbol and name and price %}
+    <form>
+        <br>
+        <h3>{{ name }}</h3>
+        <p>Current price: {{ price | usd }} per share</p>
+        <button type="submit" formaction="/buy" class="btn btn-success" name="symbol"
+                            value={{ symbol }}>Buy</button>
+    </form>
+    {% endif %}
+
+{% endblock %}
