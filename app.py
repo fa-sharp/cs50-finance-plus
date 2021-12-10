@@ -361,7 +361,7 @@ def sell():
 
         if not shares or shares == 0:
             return apology("must enter a valid number of shares", 400)
-        elif shares <= 0:
+        elif shares < 0:
             return apology("I told you not to do that. I am upset now.")
 
         # Lookup stock
@@ -377,12 +377,13 @@ def sell():
             print(f"Unexpected length {len(cashResult)} of cashResult, while looking up user {userId}")
             return apology("server error while looking up user!", 500)
 
+        userCash = cashResult[0]["cash"]
+
         # Check if user has enough of the stock to sell
         currentStock = next((stock for stock in portfolio if stock["symbol"] == symbol), False)
         if not currentStock or currentStock['shares'] < shares:
             return apology("you don't have enough of that stock to sell :(", 400)
 
-        userCash = cashResult[0]["cash"]
         subtotal = stockData["price"] * shares
 
         # Trade the stock: Update all 3 tables

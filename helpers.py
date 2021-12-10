@@ -7,6 +7,7 @@ from functools import wraps
 
 from jinja2 import Markup
 
+req = requests.Session()
 
 def apology(message, code=400):
     """Render message as an apology to user."""
@@ -44,7 +45,7 @@ def lookup(symbol):
     try:
         api_key = os.environ.get("API_KEY")
         url = f"https://cloud.iexapis.com/stable/stock/{urllib.parse.quote_plus(symbol)}/quote?token={api_key}"
-        response = requests.get(url)
+        response = req.get(url)
         response.raise_for_status()
     except requests.RequestException:
         return None

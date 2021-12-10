@@ -1,1 +1,4 @@
+__pycache__
 venv
+.vscode
+.api_key

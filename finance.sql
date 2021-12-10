@@ -1,4 +1,12 @@
 BEGIN TRANSACTION;
+DROP TABLE IF EXISTS "users";
+CREATE TABLE "users" (
+	"id"		INTEGER,
+	"username"	TEXT NOT NULL,
+	"hash"		TEXT NOT NULL,
+	"cash"		NUMERIC NOT NULL DEFAULT 10000.00,
+	PRIMARY KEY("id")
+);
 DROP TABLE IF EXISTS "portfolios";
 CREATE TABLE "portfolios" (
 	"id"		integer NOT NULL,
@@ -17,14 +25,6 @@ CREATE TABLE "transactions" (
 	"user_id" 	REFERENCES users ("id") ON UPDATE CASCADE ON DELETE CASCADE NOT NULL,
 	"portfolio_id" 	REFERENCES portfolios ("id") ON UPDATE CASCADE ON DELETE SET NULL,
 	PRIMARY KEY("id" AUTOINCREMENT)
-);
-DROP TABLE IF EXISTS "users";
-CREATE TABLE "users" (
-	"id"		INTEGER,
-	"username"	TEXT NOT NULL,
-	"hash"		TEXT NOT NULL,
-	"cash"		NUMERIC NOT NULL DEFAULT 10000.00,
-	PRIMARY KEY("id")
 );
 DROP INDEX IF EXISTS "portfolios_user_id_idx";
 CREATE INDEX "portfolios_user_id_idx" ON "portfolios" (
