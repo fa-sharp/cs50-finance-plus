@@ -14,6 +14,7 @@
                 <th>Symbol</th>
                 <th>Shares</th>
                 <th>Price</th>
+                <th>Day Change</th>
                 <th>Market Value</th>
             </tr>
         </thead>
@@ -29,7 +30,9 @@
                     </td>
                     <td><abbr title="{{ stock.name }}">{{ stock.symbol }}</abbr></td>
                     <td>{{ stock.shares | commas }}</td>
-                    <td>{{ stock.price | usd }}</td>
+                    <td><abbr title="Open {{ stock.open | usd }}, Low {{ stock.low | usd }}, High {{ stock.high | usd }}">
+                            {{ stock.price | usd }}</abbr></td>
+                    <td>{{ stock.dayChange | cash_flow }} ({{ stock.percentChange | percent }})</td>
                     <td>{{ stock.value | usd }}</td>
                 </tr>
             {% endfor %}
@@ -40,6 +43,7 @@
                 <td>Cash</td>
                 <td />
                 <td />
+                <td />
                 <td>{{ cash | usd }}</td>
             </tr>
             <tr>
@@ -47,6 +51,7 @@
                 <td><b>TOTAL</b></td>
                 <td />
                 <td />
+                <td>{{ portfolio | sum(attribute='dayChange') | cash_flow }}</td>
                 <td><b>{{ totalMarketValue | usd }}</b></td>
             </tr>
         </tbody>

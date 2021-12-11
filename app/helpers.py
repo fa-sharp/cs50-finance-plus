@@ -2,12 +2,11 @@ import os
 import requests
 import urllib.parse
 
-from flask import redirect, render_template, request, session
+from flask import redirect, render_template, session
 from functools import wraps
 
-from jinja2 import Markup
-
 req = requests.Session()
+"""Requests Session object. We can use this to make multiple calls to the same URL, with keep-alive"""
 
 def apology(message, code=400):
     """Render message as an apology to user."""
@@ -56,25 +55,15 @@ def lookup(symbol):
         return {
             "name": quote["companyName"],
             "price": float(quote["latestPrice"]),
-            "symbol": quote["symbol"]
+            "symbol": quote["symbol"],
+            "priceChange": quote['change'],
+            "percentChange": quote['changePercent'],
+            "open": quote['open'],
+            "low": quote['low'],
+            "high": quote['high'],
+            "lastUpdate": quote['latestUpdate']
         }
     except (KeyError, TypeError, ValueError):
         return None
 
 
-def commas(value):
-    """Add commas to a numeric value"""
-    return f"{value:,}"
-
-
-def usd(value):
-    """Format value as USD."""
-    return f"${value:,.2f}"
-
-
-def cash_flow(value):
-    """Format cash flow (highlighting positive or negative amount)"""
-    if value < 0:
-        return Markup(f"<span class='negative'>${value:,.2f}</span>")
-    else:
-        return Markup(f"<span class='positive'>${value:,.2f}</span>")

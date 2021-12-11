@@ -10,7 +10,8 @@ from datetime import datetime
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from helpers import apology, login_required, lookup, usd, cash_flow, commas
+from helpers import apology, login_required, lookup
+from jinja_filters import usd, cash_flow, commas, percent
 
 # Get environment variables from .env file, if there is one
 load_dotenv()
@@ -34,6 +35,7 @@ def after_request(response):
 app.jinja_env.filters["usd"] = usd
 app.jinja_env.filters["cash_flow"] = cash_flow
 app.jinja_env.filters["commas"] = commas
+app.jinja_env.filters["percent"] = percent
 
 # Configure session to use filesystem (instead of signed cookies)
 app.config["SESSION_FILE_DIR"] = mkdtemp()
@@ -78,15 +80,16 @@ def index():
     pfTotalMarketValue = userCash
 
     for stock in portfolio:
-        # Get current stock data, and add it to each stock in the portfolio dictionary
+        # Get current stock data, and merge it into the stock dict
         stockData = lookup(stock['symbol'])
-        value = stockData['price'] * stock['shares']
+        stock.update(stockData)
 
-        stock['price'] = stockData['price']
-        stock['value'] = value
-        stock['name'] = stockData['name']
+        # Calculate total current value (price * shares)
+        stock['value'] = stockData['price'] * stock['shares']
+        pfTotalMarketValue += stock['value'] # Add stock value to the total market value calculation
 
-        pfTotalMarketValue += value
+        # Calculate day change (price day change * shares)
+        stock['dayChange'] = stockData['priceChange'] * stock['shares']
 
     # Total Gain/loss = Portfolio current value - initial cash basis
     totalGL = pfTotalMarketValue - initialCashBasis
