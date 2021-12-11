@@ -1,66 +1,48 @@
-----
--- phpLiteAdmin database dump (http://www.phpliteadmin.org/)
--- phpLiteAdmin version: 1.9.7.1
--- Exported: 5:18am on December 6, 2021 (UTC)
--- database file: /home/ubuntu/pset9/finance/finance.db
-----
-
-----
--- Drop table for users
-----
+BEGIN TRANSACTION;
 DROP TABLE IF EXISTS "users";
-
-----
--- Table structure for users
-----
-CREATE TABLE users (id INTEGER, username TEXT NOT NULL, hash TEXT NOT NULL, cash NUMERIC NOT NULL DEFAULT 10000.00, PRIMARY KEY(id));
-
-----
--- Drop table for portfolios
-----
+CREATE TABLE "users" (
+	"id"		INTEGER GENERATED ALWAYS AS IDENTITY,
+	"username"	TEXT NOT NULL,
+	"hash"		TEXT NOT NULL,
+	"cash"		NUMERIC NOT NULL DEFAULT 10000.00,
+	PRIMARY KEY("id")
+);
 DROP TABLE IF EXISTS "portfolios";
-
-----
--- Table structure for portfolios
-----
-CREATE TABLE 'portfolios' ('id' integer PRIMARY KEY AUTOINCREMENT NOT NULL,'symbol' text NOT NULL, 'shares' integer NOT NULL, 'user_id'  INTEGER NOT NULL  );
-
-----
--- Drop table for transactions
-----
+CREATE TABLE "portfolios" (
+	"id"		integer NOT NULL GENERATED ALWAYS AS IDENTITY,
+	"shares"	integer NOT NULL,
+	"symbol"	text NOT NULL,
+	"user_id"	integer NOT NULL,
+	PRIMARY KEY("id"),
+	FOREIGN KEY ("user_id") REFERENCES users ("id") ON UPDATE CASCADE ON DELETE CASCADE
+);
 DROP TABLE IF EXISTS "transactions";
-
-----
--- Table structure for transactions
-----
-CREATE TABLE 'transactions' ('id' integer PRIMARY KEY AUTOINCREMENT NOT NULL,'timestamp' timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, 'shares' integer NOT NULL, 'symbol' text NOT NULL, 'user_id'  INTEGER NOT NULL  , 'price'  INTEGER NOT NULL  );
-
-----
--- Drop index for username
-----
-DROP INDEX IF EXISTS "username";
-
-----
--- structure for index username on table users
-----
-CREATE UNIQUE INDEX username ON users (username);
-
-----
--- Drop index for transaction_user_id_idx
-----
-DROP INDEX IF EXISTS "transaction_user_id_idx";
-
-----
--- structure for index transaction_user_id_idx on table transactions
-----
-CREATE INDEX 'transaction_user_id_idx' ON "transactions" ("user_id");
-
-----
--- Drop index for portfolios_user_id_idx
-----
+CREATE TABLE "transactions" (
+	"id"		integer NOT NULL GENERATED ALWAYS AS IDENTITY,
+	"timestamp"	timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	"shares"	integer NOT NULL,
+	"symbol"	text NOT NULL,
+	"price"		NUMERIC NOT NULL,
+	"user_id" 	integer NOT NULL,
+	"portfolio_id" 	integer,
+	PRIMARY KEY("id"),
+	FOREIGN KEY ("user_id") REFERENCES users ("id") ON UPDATE CASCADE ON DELETE CASCADE,
+	FOREIGN KEY ("portfolio_id") REFERENCES portfolios ("id") ON UPDATE CASCADE ON DELETE SET NULL
+);
 DROP INDEX IF EXISTS "portfolios_user_id_idx";
-
-----
--- structure for index portfolios_user_id_idx on table portfolios
-----
-CREATE INDEX 'portfolios_user_id_idx' ON "portfolios" ("user_id");
+CREATE INDEX "portfolios_user_id_idx" ON "portfolios" (
+	"user_id"
+);
+DROP INDEX IF EXISTS "transactions_user_id_idx";
+CREATE INDEX "transactions_user_id_idx" ON "transactions" (
+	"user_id"
+);
+DROP INDEX IF EXISTS "transactions_timestamp_idx";
+CREATE INDEX "transactions_timestamp_idx" ON "transactions" (
+	"timestamp"
+);
+DROP INDEX IF EXISTS "username";
+CREATE UNIQUE INDEX "username" ON "users" (
+	"username"
+);
+COMMIT;

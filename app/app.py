@@ -1,6 +1,7 @@
 import os
 
 import json
+from dotenv import load_dotenv
 from cs50 import SQL
 from flask import Flask, flash, redirect, render_template, request, session
 from flask_session import Session
@@ -11,12 +12,14 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from helpers import apology, login_required, lookup, usd, cash_flow, commas
 
+# Get environment variables from .env file, if there is one
+load_dotenv()
+
 # Configure application
 app = Flask(__name__)
 
 # Ensure templates are auto-reloaded
 app.config["TEMPLATES_AUTO_RELOAD"] = True
-
 
 # Ensure responses aren't cached
 @app.after_request
@@ -38,8 +41,13 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 Session(app)
 
-# Configure CS50 Library to use SQLite database
-db = SQL("sqlite:///finance.db")
+# Get Postgres connection string
+postgres_url = os.environ.get("POSTGRES_URL")
+if postgres_url is None:
+    raise RuntimeError("POSTGRES_URL not set")
+
+# Configure CS50 Library to use Postgres database
+db = SQL(postgres_url)
 
 # Make sure API key is set
 if not os.environ.get("API_KEY"):
@@ -51,23 +59,22 @@ if not os.environ.get("API_KEY"):
 def index():
     """Show portfolio of stocks"""
 
-    # Get user's portfolio and cash balance.
     userId = session.get("user_id")
-    portfolio = db.execute("SELECT * from portfolios WHERE user_id = ? ORDER BY symbol", userId)
-    cashResult = db.execute("SELECT cash from users WHERE id = ?", userId)
 
-    if len(cashResult) != 1:
-        print(f"Unexpected length {len(cashResult)} of cashResult, while looking up user {userId}")
-        return apology("server error while looking up user!", 500)
+    # Get user's portfolio, cash balance
+    try:
+        db.execute("START TRANSACTION")
+        portfolio = db.execute("SELECT * from portfolios WHERE user_id = ? ORDER BY symbol", userId)
+        userCash = db.execute("SELECT cash from users WHERE id = ?", userId)[0]['cash']
+        # Using the SUM command, we calculate the initial cash basis (sum of all DEPOSIT transactions)
+        initialCashBasis = db.execute("SELECT SUM(price) from transactions WHERE shares = 0 AND user_id = ?", userId)[0]['sum']
+    except:
+        app.logger.exception(f"Error reading from database for user {userId}")
+        return apology("Server error!", 500)
+    finally:
+        db.execute("COMMIT")
 
-    # User's current cash balance
-    userCash = cashResult[0]["cash"]
-
-    # In order to calculate total gain/loss of the portfolio, we'll need to get the initial cash basis (sum of all DEPOSIT transactions)
-    # Using the SUM command, we can calculate this in the SQL itself
-    initialCashBasis = db.execute("SELECT SUM(price) from transactions WHERE shares = 0 AND user_id = ?", userId)[0]['SUM(price)']
-
-    # We'll also need the portfolio's current total market value. We start with the user's cash balance, and add all stock values below
+    # To calculate portfolio's current total market value, we start with the user's cash balance, and add all stock values below
     pfTotalMarketValue = userCash
 
     for stock in portfolio:
@@ -81,7 +88,7 @@ def index():
 
         pfTotalMarketValue += value
 
-    # Total Gain/loss = Portfolio current value - cash deposits
+    # Total Gain/loss = Portfolio current value - initial cash basis
     totalGL = pfTotalMarketValue - initialCashBasis
 
     # Pass portfolio, cash, and totals to Jinja
@@ -101,50 +108,48 @@ def buy():
         # Validation
         if symbol == "":
             return apology("must provide stock symbol", 400)
-
         if not shares or shares <= 0:
             return apology("must enter a positive integer for # of shares", 400)
 
         # Lookup stock
         stockData = lookup(symbol)
-
         if not stockData:
             return apology("not a valid stock symbol", 400)
 
-        # Get user balance and portfolio
-        portfolio = db.execute("SELECT * from portfolios WHERE user_id = ?", userId)
-        cashResult = db.execute("SELECT cash from users WHERE id = ?", userId)
-
-        if len(cashResult) != 1:
-            print(f"Unexpected length {len(cashResult)} of cashResult, while looking up user {userId}")
-            return apology("server error while looking up user!", 500)
-
-        # Check if user has enough money to buy the stock
-        userCash = cashResult[0]["cash"]
-        subtotal = stockData["price"] * shares
-
-        if (userCash < subtotal):
-            return apology("not enough cash yo!", 400)
-
-        # Trade the stock: Update all 3 tables
         try:
+            db.execute("START TRANSACTION")
+
+            # Get user balance and portfolio
+            portfolio = db.execute("SELECT * from portfolios WHERE user_id = ?", userId)
+            userCash = db.execute("SELECT cash from users WHERE id = ?", userId)[0]["cash"]
+
+            # Check if user has enough money to buy the stock
+            subtotal = stockData["price"] * shares
+            if (userCash < subtotal):
+                return apology("not enough cash yo!", 400)
+
             # Check if stock is already in user's portfolio
             existingStock = next((stock for stock in portfolio if stock["symbol"] == symbol), False)
-
-            # Insert row in transaction table, and adjust balance in user table
-            db.execute("INSERT INTO transactions (shares, symbol, price, user_id) VALUES (?, ?, ?, ?)",
-                       shares, symbol, stockData["price"], userId)
+            
+            # TRADE THE STOCK: Update all 3 tables
+            # Adjust balance in user table
             db.execute("UPDATE users SET cash = ? WHERE id = ?", userCash - subtotal, userId)
-
-            # If stock already in portfolio, update the portfolio table row with new quantity of shares. Otherwise, add a new row
+            # Update the transaction and portfolio tables
             if existingStock:
                 newShares = existingStock['shares'] + shares
                 db.execute("UPDATE portfolios SET shares = ? WHERE id = ?", newShares, existingStock['id'])
+                db.execute("INSERT INTO transactions (shares, symbol, price, portfolio_id, user_id) VALUES (?, ?, ?, ?, ?)",
+                            shares, symbol, stockData["price"], existingStock['id'], userId)   
             else:
-                db.execute("INSERT INTO portfolios (shares, symbol, user_id) VALUES (?, ?, ?)", shares, symbol, userId)
-
-        except Exception as e:
-            print(e)
+                newPortfolioId = db.execute("INSERT INTO portfolios (shares, symbol, user_id) VALUES (?, ?, ?)", shares, symbol, userId)
+                db.execute("INSERT INTO transactions (shares, symbol, price, portfolio_id, user_id) VALUES (?, ?, ?, ?, ?)",
+                            shares, symbol, stockData["price"], newPortfolioId, userId)
+            
+            db.execute("COMMIT")
+        
+        except:
+            db.execute("ROLLBACK")
+            app.logger.exception("Buying stock failed :(")
             return apology("server error while buying stock!", 500)
 
         # Phew! If we made it this far, we're done! Put together a nice message for the user.
@@ -201,9 +206,8 @@ def history():
 
     for tx in transactions:
         # Add formatted time and date to each transaction
-        txTimestamp = datetime.fromisoformat(tx['timestamp'])
-        tx['time'] = txTimestamp.strftime('%-I:%M %p')
-        tx['date'] = txTimestamp.strftime('%b %-d, %Y')
+        tx['time'] = tx['timestamp'].strftime('%-I:%M %p')
+        tx['date'] = tx['timestamp'].strftime('%b %-d, %Y')
 
         # Determine action and total cash flow based on positive, negative, or zero number of shares
         if tx['shares'] > 0:
@@ -325,18 +329,20 @@ def register():
             return apology("passwords must match", 400)
 
         hashPassword = generate_password_hash(password)
-
         INITIAL_DEPOSIT = 10000
+        
         try:
-            # Insert new user to DB
+            db.execute("START TRANSACTION")
+            # Insert new user in users table
             userId = db.execute("INSERT INTO users (username, hash, cash) VALUES (?, ?, ?)",
                                 username, hashPassword, INITIAL_DEPOSIT)
-        except:
-            return apology("username already exists!", 400)
-
-        # Insert row in transaction table to indicate the initial deposit (0 shares to indicate DEPOSIT)
-        db.execute("INSERT INTO transactions (shares, symbol, price, user_id) VALUES (?, ?, ?, ?)",
+            # Insert row in transaction table to indicate the initial deposit (0 shares to indicate DEPOSIT)
+            db.execute("INSERT INTO transactions (shares, symbol, price, user_id) VALUES (?, ?, ?, ?)",
                    0, '', INITIAL_DEPOSIT, userId)
+            db.execute("COMMIT")
+        except:
+            db.execute("ROLLBACK")
+            return apology("username already exists!", 400)
 
         return render_template("login.html")
 
@@ -358,7 +364,6 @@ def sell():
         # Validation
         if symbol == "":
             return apology("must provide stock symbol", 400)
-
         if not shares or shares == 0:
             return apology("must enter a valid number of shares", 400)
         elif shares < 0:
@@ -369,41 +374,42 @@ def sell():
         if not stockData:
             return apology("not a valid stock symbol", 400)
 
-        # Get user's cash balance and portfolio
-        portfolio = db.execute("SELECT * from portfolios WHERE user_id = ?", userId)
-        cashResult = db.execute("SELECT cash from users WHERE id = ?", userId)
-
-        if len(cashResult) != 1:
-            print(f"Unexpected length {len(cashResult)} of cashResult, while looking up user {userId}")
-            return apology("server error while looking up user!", 500)
-
-        userCash = cashResult[0]["cash"]
-
-        # Check if user has enough of the stock to sell
-        currentStock = next((stock for stock in portfolio if stock["symbol"] == symbol), False)
-        if not currentStock or currentStock['shares'] < shares:
-            return apology("you don't have enough of that stock to sell :(", 400)
-
-        subtotal = stockData["price"] * shares
-
-        # Trade the stock: Update all 3 tables
         try:
-            # Insert row in transaction table (with negative value of shares to indicate SELL), and adjust balance in user table
-            db.execute("INSERT INTO transactions (shares, symbol, price, user_id) VALUES (?, ?, ?, ?)",
-                       -shares, symbol, stockData["price"], userId)
+            db.execute("START TRANSACTION")
+
+            # Get user's cash balance and portfolio
+            portfolio = db.execute("SELECT * from portfolios WHERE user_id = ?", userId)
+            userCash = db.execute("SELECT cash from users WHERE id = ?", userId)[0]['cash']
+
+            # Check if user has enough of the stock to sell
+            currentStock = next((stock for stock in portfolio if stock["symbol"] == symbol), False)
+            if not currentStock or currentStock['shares'] < shares:
+                return apology("you don't have enough of that stock to sell :(", 400)
+
+            subtotal = stockData["price"] * shares
+
+            # TRADE THE STOCK: Update all 3 tables
+            # Adjust balance in user table
             db.execute("UPDATE users SET cash = ? WHERE id = ?", userCash + subtotal, userId)
 
             # If we're selling all existing shares, delete the portfolio row. Otherwise, update the row with new quantity of shares.
+            # Insert row in transaction table (with negative value of shares to indicate SELL)
             if currentStock['shares'] == shares:
                 db.execute("DELETE FROM portfolios WHERE id = ?", currentStock['id'])
+                db.execute("INSERT INTO transactions (shares, symbol, price, user_id) VALUES (?, ?, ?, ?)",
+                       -shares, symbol, stockData["price"], userId)
             else:
                 newShares = currentStock['shares'] - shares
                 db.execute("UPDATE portfolios SET shares = ? WHERE id = ?", newShares, currentStock['id'])
-
-        except Exception as e:
-            print(e)
+                db.execute("INSERT INTO transactions (shares, symbol, price, portfolio_id, user_id) VALUES (?, ?, ?, ?, ?)",
+                       -shares, symbol, stockData["price"], currentStock["id"], userId)            
+            
+            db.execute("COMMIT")
+        
+        except:
+            db.execute("ROLLBACK")
+            app.logger.exception("Selling stock failed :(")
             return apology("server error while selling stock!", 500)
-
 
         # Fingers crossed! If we made it this far, we're done! Put together a nice message for the user.
         flash(f"Sold {shares} {'shares' if shares > 1 else 'share'} of {symbol} at ${stockData['price']:,.2f} for a total of ${subtotal:,.2f}!")
@@ -430,25 +436,21 @@ def deposit():
         if not amount or amount <= 0:
             return apology("must enter a positive number for amount to deposit", 400)
 
-        # Get user balance and portfolio
-        cashResult = db.execute("SELECT cash from users WHERE id = ?", userId)
-
-        if len(cashResult) != 1:
-            print(f"Unexpected length {len(cashResult)} of cashResult, while looking up user {userId}")
-            return apology("server error while looking up user!", 500)
-
-        userCash = cashResult[0]['cash']
+        # Get user's cash balance
+        userCash = db.execute("SELECT cash from users WHERE id = ?", userId)[0]['cash']
 
         try:
+            db.execute("START TRANSACTION")
             # Insert row in transaction table (with 0 shares to indicate DEPOSIT)
             db.execute("INSERT INTO transactions (shares, symbol, price, user_id) VALUES (?, ?, ?, ?)",
                        0, '', amount, userId)
-
             # Adjust balance in user table
             db.execute("UPDATE users SET cash = ? WHERE id = ?", userCash + amount, userId)
+            db.execute("COMMIT")
 
-        except Exception as e:
-            print(e)
+        except:
+            db.execute("ROLLBACK")
+            app.logger.exception("Error depositing cash!")
             return apology("server error while depositing cash!", 500)
 
         # Done!

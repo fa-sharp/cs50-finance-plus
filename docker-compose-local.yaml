@@ -1,0 +1,18 @@
+# Spin up a local Postgres database and Adminer instance
+version: "3.7"
+services:
+  db:
+    image: postgres:12
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: pgfinance
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - $PWD/local-postgres/:/var/lib/postgresql/data:z
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "127.0.0.1:8080:8080"
