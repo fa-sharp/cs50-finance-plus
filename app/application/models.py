@@ -51,10 +51,12 @@ class Stock(db.Model):
 
 class Transaction(db.Model):
 
-    def __init__(self, symbol: str, shares: int, price: float):
+    def __init__(self, symbol: str, shares: int, price: float, user_id: int = None, stock_id: int = None):
         self.symbol = symbol
         self.shares = shares
         self.price = price
+        self.user_id = user_id
+        self.stock_id = stock_id
 
     id = db.Column(Integer, primary_key=True, nullable=False)
 

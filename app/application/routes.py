@@ -7,8 +7,9 @@ from sqlalchemy import func
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from . import db
 from flask import current_app as app
-from application.models import Transaction, db, User
+from application.models import Stock, Transaction, User
 from application.helpers import apology, login_required, lookup
 from application.jinja_filters import usd, cash_flow, commas, percent
 
@@ -218,7 +219,8 @@ def login():
     """Log user in"""
 
     # Forget any user_id
-    session.clear()
+    if session.get("user_id") is not None:
+        session.pop("user_id")
 
     if request.method == "POST":
 
@@ -255,7 +257,7 @@ def logout():
     """Log user out"""
 
     # Forget any user_id
-    session.clear()
+    session.pop("user_id")
 
     # Redirect user to login form
     return redirect("/")
@@ -334,7 +336,8 @@ def register():
 def sell():
     """Sell shares of stock"""
 
-    userId = session.get("user_id")
+    user_id = session.get("user_id")
+    user = User.query.filter(User.id == user_id).first()
 
     if request.method == "POST":
         symbol = request.form.get("symbol", default="").upper().strip()
@@ -352,41 +355,36 @@ def sell():
         stockData = lookup(symbol)
         if not stockData:
             return apology("not a valid stock symbol", 400)
+        
+        # Check if user has enough of the stock to sell
+        current_stock = next((stock for stock in user.portfolio if stock.symbol == symbol), False)
+        if not current_stock or current_stock.shares < shares:
+            return apology("you don't have enough of that stock to sell :(", 400)
 
+        subtotal = Decimal(stockData["price"] * shares)
+
+        # TRADE THE STOCK
         try:
-            db.execute("START TRANSACTION")
+            # Adjust user's cash balance
+            user.cash += subtotal
 
-            # Get user's cash balance and portfolio
-            portfolio = db.execute("SELECT * from portfolios WHERE user_id = ?", userId)
-            userCash = db.execute("SELECT cash from users WHERE id = ?", userId)[0]['cash']
-
-            # Check if user has enough of the stock to sell
-            currentStock = next((stock for stock in portfolio if stock["symbol"] == symbol), False)
-            if not currentStock or currentStock['shares'] < shares:
-                return apology("you don't have enough of that stock to sell :(", 400)
-
-            subtotal = stockData["price"] * shares
-
-            # TRADE THE STOCK: Update all 3 tables
-            # Adjust balance in user table
-            db.execute("UPDATE users SET cash = ? WHERE id = ?", userCash + subtotal, userId)
-
-            # If we're selling all existing shares, delete the portfolio row. Otherwise, update the row with new quantity of shares.
-            # Insert row in transaction table (with negative value of shares to indicate SELL)
-            if currentStock['shares'] == shares:
-                db.execute("DELETE FROM portfolios WHERE id = ?", currentStock['id'])
-                db.execute("INSERT INTO transactions (shares, symbol, price, user_id) VALUES (?, ?, ?, ?)",
-                       -shares, symbol, stockData["price"], userId)
-            else:
-                newShares = currentStock['shares'] - shares
-                db.execute("UPDATE portfolios SET shares = ? WHERE id = ?", newShares, currentStock['id'])
-                db.execute("INSERT INTO transactions (shares, symbol, price, portfolio_id, user_id) VALUES (?, ?, ?, ?, ?)",
-                       -shares, symbol, stockData["price"], currentStock["id"], userId)            
+            # If we're selling all existing shares, delete the current stock
+            # Otherwise, update the current stock with new quantity of shares.
+            # Also insert row in transaction table (with negative value of shares to indicate SELL)
+            if current_stock.shares == shares:
+                sell_transaction = Transaction(symbol, -shares, stockData["price"], user_id)
+                db.session.add(sell_transaction)
+                db.session.delete(current_stock)
             
-            db.execute("COMMIT")
+            else:
+                sell_transaction = Transaction(symbol, -shares, stockData["price"], user_id, current_stock.id)
+                db.session.add(sell_transaction)
+                current_stock.shares -= shares
+            
+            db.session.commit()
         
         except:
-            db.execute("ROLLBACK")
+            db.session.rollback()
             app.logger.exception("Selling stock failed :(")
             return apology("server error while selling stock!", 500)
 
@@ -397,9 +395,8 @@ def sell():
     else:
         symbol = request.args.get("symbol", "")
 
-        # Get user's portfolio, and pass to Jinja
-        portfolio = db.execute("SELECT * from portfolios WHERE user_id = ? ORDER BY symbol", userId)
-        return render_template("sell.html", portfolio=portfolio, symbol=symbol)
+        # Pass user's portfolio to Jinja
+        return render_template("sell.html", portfolio=user.portfolio, symbol=symbol)
 
 
 @app.route("/deposit", methods=["GET", "POST"])
@@ -408,7 +405,7 @@ def deposit():
     """Deposit money in cash account"""
 
     if request.method == "POST":
-        userId = session.get("user_id")
+        user_id = session.get("user_id")
         amount = request.form.get("amount", type=float)
 
         # Validation
@@ -416,7 +413,7 @@ def deposit():
             return apology("must enter a positive number for amount to deposit", 400)
 
         # Get user's cash balance
-        userCash = db.execute("SELECT cash from users WHERE id = ?", userId)[0]['cash']
+        user = User.query.filter(User.id == user_id).first()
 
         try:
             db.execute("START TRANSACTION")
