@@ -1,8 +1,7 @@
-import os
 import requests
 import urllib.parse
 
-from flask import redirect, render_template, session
+from flask import redirect, render_template, session, current_app
 from functools import wraps
 
 req = requests.Session()
@@ -42,7 +41,7 @@ def lookup(symbol):
 
     # Contact API
     try:
-        api_key = os.environ.get("API_KEY")
+        api_key = current_app.config["API_KEY"]
         url = f"https://cloud.iexapis.com/stable/stock/{urllib.parse.quote_plus(symbol)}/quote?token={api_key}"
         response = req.get(url)
         response.raise_for_status()

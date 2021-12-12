@@ -1,26 +1,13 @@
 import os
-
 import json
-from dotenv import load_dotenv
 from cs50 import SQL
-from flask import Flask, flash, redirect, render_template, request, session
-from flask_session import Session
-from tempfile import mkdtemp
-from datetime import datetime
+from flask import current_app as app
+from flask import flash, redirect, render_template, request, session
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from helpers import apology, login_required, lookup
-from jinja_filters import usd, cash_flow, commas, percent
-
-# Get environment variables from .env file, if there is one
-load_dotenv()
-
-# Configure application
-app = Flask(__name__)
-
-# Ensure templates are auto-reloaded
-app.config["TEMPLATES_AUTO_RELOAD"] = True
+from application.helpers import apology, login_required, lookup
+from application.jinja_filters import usd, cash_flow, commas, percent
 
 # Ensure responses aren't cached
 @app.after_request
@@ -30,18 +17,11 @@ def after_request(response):
     response.headers["Pragma"] = "no-cache"
     return response
 
-
-# Custom filters
+# Custom Jinja filters
 app.jinja_env.filters["usd"] = usd
 app.jinja_env.filters["cash_flow"] = cash_flow
 app.jinja_env.filters["commas"] = commas
 app.jinja_env.filters["percent"] = percent
-
-# Configure session to use filesystem (instead of signed cookies)
-app.config["SESSION_FILE_DIR"] = mkdtemp()
-app.config["SESSION_PERMANENT"] = False
-app.config["SESSION_TYPE"] = "filesystem"
-Session(app)
 
 # Get Postgres connection string
 postgres_url = os.environ.get("POSTGRES_URL")
@@ -50,11 +30,6 @@ if postgres_url is None:
 
 # Configure CS50 Library to use Postgres database
 db = SQL(postgres_url)
-
-# Make sure API key is set
-if not os.environ.get("API_KEY"):
-    raise RuntimeError("API_KEY not set")
-
 
 @app.route("/")
 @login_required
