@@ -79,7 +79,7 @@ def buy():
     """Buy shares of stock"""
 
     if request.method == "POST":
-        userId = session.get("user_id")
+        user_id = session.get("user_id")
         symbol = request.form.get("symbol", default="").upper().strip()
         shares = request.form.get("shares", type=int)
 
@@ -94,39 +94,39 @@ def buy():
         if not stockData:
             return apology("not a valid stock symbol", 400)
 
+        # Get user balance and portfolio
+        user = User.query.filter(User.id == user_id).first()
+
+        # Check if user has enough money to buy the stock
+        subtotal = Decimal(stockData["price"] * shares)
+        if (user.cash < subtotal):
+            return apology("not enough cash yo!", 400)
+
+        # Check if stock is already in user's portfolio
+        existing_stock = next((stock for stock in user.portfolio if stock.symbol == symbol), False)
+            
+        # TRADE THE STOCK
         try:
-            db.execute("START TRANSACTION")
+            # Adjust user's cash balance
+            user.cash -= subtotal
 
-            # Get user balance and portfolio
-            portfolio = db.execute("SELECT * from portfolios WHERE user_id = ?", userId)
-            userCash = db.execute("SELECT cash from users WHERE id = ?", userId)[0]["cash"]
-
-            # Check if user has enough money to buy the stock
-            subtotal = stockData["price"] * shares
-            if (userCash < subtotal):
-                return apology("not enough cash yo!", 400)
-
-            # Check if stock is already in user's portfolio
-            existingStock = next((stock for stock in portfolio if stock["symbol"] == symbol), False)
-            
-            # TRADE THE STOCK: Update all 3 tables
-            # Adjust balance in user table
-            db.execute("UPDATE users SET cash = ? WHERE id = ?", userCash - subtotal, userId)
-            # Update the transaction and portfolio tables
-            if existingStock:
-                newShares = existingStock['shares'] + shares
-                db.execute("UPDATE portfolios SET shares = ? WHERE id = ?", newShares, existingStock['id'])
-                db.execute("INSERT INTO transactions (shares, symbol, price, portfolio_id, user_id) VALUES (?, ?, ?, ?, ?)",
-                            shares, symbol, stockData["price"], existingStock['id'], userId)   
+            # Add transaction, and add/update the stock
+            if existing_stock:
+                buy_transaction = Transaction(symbol, shares, stockData["price"], user.id, existing_stock.id)
+                existing_stock.shares += shares
+                
+                db.session.add(buy_transaction)
             else:
-                newPortfolioId = db.execute("INSERT INTO portfolios (shares, symbol, user_id) VALUES (?, ?, ?)", shares, symbol, userId)
-                db.execute("INSERT INTO transactions (shares, symbol, price, portfolio_id, user_id) VALUES (?, ?, ?, ?, ?)",
-                            shares, symbol, stockData["price"], newPortfolioId, userId)
+                buy_transaction = Transaction(symbol, shares, stockData["price"], user.id)
+                new_stock = Stock(symbol, shares, user.id)
+                new_stock.basis_transactions.append(buy_transaction)
+                
+                db.session.add(new_stock)
             
-            db.execute("COMMIT")
+            db.session.commit()
         
         except:
-            db.execute("ROLLBACK")
+            db.session.rollback()
             app.logger.exception("Buying stock failed :(")
             return apology("server error while buying stock!", 500)
 
@@ -405,27 +405,26 @@ def deposit():
     """Deposit money in cash account"""
 
     if request.method == "POST":
-        user_id = session.get("user_id")
-        amount = request.form.get("amount", type=float)
+        amount = request.form.get("amount", type=Decimal)
 
         # Validation
         if not amount or amount <= 0:
             return apology("must enter a positive number for amount to deposit", 400)
-
-        # Get user's cash balance
+        
+        # Get user
+        user_id = session.get("user_id")
         user = User.query.filter(User.id == user_id).first()
 
         try:
-            db.execute("START TRANSACTION")
-            # Insert row in transaction table (with 0 shares to indicate DEPOSIT)
-            db.execute("INSERT INTO transactions (shares, symbol, price, user_id) VALUES (?, ?, ?, ?)",
-                       0, '', amount, userId)
-            # Adjust balance in user table
-            db.execute("UPDATE users SET cash = ? WHERE id = ?", userCash + amount, userId)
-            db.execute("COMMIT")
-
+            # Create new transaction (with 0 shares to indicate DEPOSIT)
+            deposit_transaction = Transaction('', 0, amount, user.id)
+            db.session.add(deposit_transaction)
+            
+            # Adjust user cash balance
+            user.cash += amount
+            db.session.commit()
         except:
-            db.execute("ROLLBACK")
+            db.session.rollback()
             app.logger.exception("Error depositing cash!")
             return apology("server error while depositing cash!", 500)
 

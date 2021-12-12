@@ -1,3 +1,4 @@
+from decimal import Decimal
 from sqlalchemy.ext.hybrid import hybrid_property
 from . import db
 from sqlalchemy import Integer, String, Text, Numeric, ForeignKey, DateTime
@@ -34,6 +35,12 @@ class User(db.Model):
 
 
 class Stock(db.Model):
+
+    def __init__(self, symbol: str, shares: int, user_id: int = None):
+        self.symbol = symbol
+        self.shares = shares
+        self.user_id = user_id
+
     id = db.Column(Integer, primary_key=True, nullable=False)
 
     symbol = db.Column(String(10), nullable=False)
@@ -51,7 +58,7 @@ class Stock(db.Model):
 
 class Transaction(db.Model):
 
-    def __init__(self, symbol: str, shares: int, price: float, user_id: int = None, stock_id: int = None):
+    def __init__(self, symbol: str, shares: int, price: Decimal, user_id: int = None, stock_id: int = None):
         self.symbol = symbol
         self.shares = shares
         self.price = price
