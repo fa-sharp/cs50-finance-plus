@@ -144,45 +144,41 @@ def buy():
 def history():
     """Show history of transactions"""
 
-    DEFAULT_LIMIT = 15
-    requestedPage = request.form.get("page", type=int, default=1)
-    unparsedStartBalances = request.form.get("startBalances")
+    DEFAULT_LIMIT = 10
+    requested_page = request.form.get("page", type=int, default=1)
+    unparsed_start_balances = request.form.get("startBalances")
 
     # Read starting balances
     try:
-        if unparsedStartBalances:
-            startBalances = json.loads(unparsedStartBalances)
+        if not unparsed_start_balances or requested_page == 1:
+            start_balances = [0]
         else:
-            startBalances = [0]
-        if type(startBalances) is not list:
-            raise
+            start_balances = json.loads(unparsed_start_balances)
+            if type(start_balances) is not list:
+                raise
     except:
         app.logger.exception("History: Error reading starting balances")
         return apology("Pagination error!", 500)
 
     # Determine the direction we're going, and the starting running balance
-    if len(startBalances) == requestedPage:
+    if len(start_balances) == requested_page:
         direction = "next"
-        runningBalance = startBalances[-1]
-    elif len(startBalances) == requestedPage + 2:
+        running_balance = Decimal(start_balances[-1])
+    elif len(start_balances) == requested_page + 2:
         direction = "prev"
-        runningBalance = startBalances[-3]
+        running_balance = Decimal(start_balances[-3])
     else:
         return apology("Pagination error!", 500)
 
     # Get user's transaction history from database
-    userId = session.get("user_id")
-    transactions = db.execute("SELECT * from transactions WHERE user_id = ? ORDER BY timestamp LIMIT ? OFFSET ?",
-                                userId, DEFAULT_LIMIT + 1, (requestedPage - 1) * DEFAULT_LIMIT)
+    user_id = session.get("user_id")
+    transaction_page = Transaction.query.\
+                                filter(Transaction.user_id == user_id).\
+                                paginate(page=requested_page, per_page=DEFAULT_LIMIT)
 
-    # Booleans for whether there is a next/previous page
-    nextPage = len(transactions) == DEFAULT_LIMIT + 1
-    prevPage = requestedPage != 1
-
-    # Slice the transaction list up to the limit
-    transactions = transactions[:DEFAULT_LIMIT]
-
-    for tx in transactions:
+    transactions = []
+    for transaction_item in transaction_page.items:
+        tx = vars(transaction_item)
         # Add formatted time and date to each transaction
         tx['time'] = tx['timestamp'].strftime('%-I:%M %p')
         tx['date'] = tx['timestamp'].strftime('%b %-d, %Y')
@@ -199,19 +195,22 @@ def history():
             tx['total'] = -(tx['price'] * tx['shares'])
 
         # Calculate and add to the running cash balance
-        runningBalance += tx['total']
-        tx['cashBalance'] = runningBalance
+        running_balance += tx['total']
+        tx['cashBalance'] = running_balance
+
+        transactions.append(tx)
 
 
     # Save the balance as of the last transaction for pagination
     if direction == 'next':
-        startBalances.append(transactions[-1]['cashBalance'])
+        start_balances.append(transactions[-1]['cashBalance'])
     else:
-        startBalances = startBalances[:-1]
+        start_balances = start_balances[:-1]
 
     # Pass transaction history and pagination data to Jinja
-    return render_template("history.html", transactions=transactions, startBalances=startBalances,
-                            currentPage=requestedPage, hasNextPage=nextPage, hasPreviousPage=prevPage)
+    return render_template("history.html", transactions=transactions, startBalances=start_balances,
+                            currentPage=requested_page, hasNextPage=transaction_page.has_next, 
+                            hasPreviousPage=transaction_page.has_prev)
 
 
 @app.route("/login", methods=["GET", "POST"])

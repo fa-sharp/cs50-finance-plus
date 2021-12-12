@@ -26,5 +26,5 @@ class Config:
     SESSION_TYPE = "sqlalchemy"
     PERMANENT_SESSION_LIFETIME = 60 * 60 * 24 # one day
 
-    # Stock data API key
+    # IEX (Stock data) API key https://iextrading.com/developer
     API_KEY = environ.get("API_KEY")
