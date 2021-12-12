@@ -1,11 +1,14 @@
+from decimal import Decimal
 import os
 import json
 from cs50 import SQL
-from flask import current_app as app
 from flask import flash, redirect, render_template, request, session
+from sqlalchemy import func
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from flask import current_app as app
+from application.models import Transaction, db, User
 from application.helpers import apology, login_required, lookup
 from application.jinja_filters import usd, cash_flow, commas, percent
 
@@ -29,48 +32,44 @@ if postgres_url is None:
     raise RuntimeError("POSTGRES_URL not set")
 
 # Configure CS50 Library to use Postgres database
-db = SQL(postgres_url)
+# db = SQL(postgres_url)
 
 @app.route("/")
 @login_required
 def index():
     """Show portfolio of stocks"""
 
-    userId = session.get("user_id")
-
-    # Get user's portfolio, cash balance
-    try:
-        db.execute("START TRANSACTION")
-        portfolio = db.execute("SELECT * from portfolios WHERE user_id = ? ORDER BY symbol", userId)
-        userCash = db.execute("SELECT cash from users WHERE id = ?", userId)[0]['cash']
-        # Using the SUM command, we calculate the initial cash basis (sum of all DEPOSIT transactions)
-        initialCashBasis = db.execute("SELECT SUM(price) from transactions WHERE shares = 0 AND user_id = ?", userId)[0]['sum']
-    except:
-        app.logger.exception(f"Error reading from database for user {userId}")
-        return apology("Server error!", 500)
-    finally:
-        db.execute("COMMIT")
+    user = User.query.filter(User.id == session.get("user_id")).first()
+    
+    # Calculate the initial cash basis for this user (sum of all DEPOSIT transactions)
+    initialCashBasis = Transaction.query.\
+                    with_entities(func.sum(Transaction.price)).\
+                    filter(Transaction.user_id == user.id, Transaction.shares == 0).\
+                    scalar()
 
     # To calculate portfolio's current total market value, we start with the user's cash balance, and add all stock values below
-    pfTotalMarketValue = userCash
-
-    for stock in portfolio:
-        # Get current stock data, and merge it into the stock dict
+    pfTotalMarketValue = user.cash
+    
+    returned_portfolio = []
+    for stock_row in user.portfolio:
+        # Create a dict which will hold updated stock data
+        stock = vars(stock_row)
         stockData = lookup(stock['symbol'])
         stock.update(stockData)
 
         # Calculate total current value (price * shares)
-        stock['value'] = stockData['price'] * stock['shares']
+        stock['value'] = Decimal(stockData['price'] * stock['shares'])
         pfTotalMarketValue += stock['value'] # Add stock value to the total market value calculation
 
         # Calculate day change (price day change * shares)
         stock['dayChange'] = stockData['priceChange'] * stock['shares']
+        returned_portfolio.append(stock)
 
     # Total Gain/loss = Portfolio current value - initial cash basis
     totalGL = pfTotalMarketValue - initialCashBasis
 
     # Pass portfolio, cash, and totals to Jinja
-    return render_template("index.html", portfolio=portfolio, cash=userCash, totalMarketValue=pfTotalMarketValue, totalGainLoss=totalGL)
+    return render_template("index.html", portfolio=returned_portfolio, cash=user.cash, totalMarketValue=pfTotalMarketValue, totalGainLoss=totalGL)
 
 
 @app.route("/buy", methods=["GET", "POST"])
@@ -223,26 +222,28 @@ def login():
 
     if request.method == "POST":
 
+        username = request.form.get("username")
+        password = request.form.get("password")
+
         # Ensure username was submitted
-        if not request.form.get("username"):
+        if not username:
             return apology("must provide username", 403)
 
         # Ensure password was submitted
-        elif not request.form.get("password"):
+        elif not password:
             return apology("must provide password", 403)
 
         # Query database for username
-        rows = db.execute("SELECT * FROM users WHERE username = ?", request.form.get("username"))
+        existing_user = User.query.filter(User.username == username).first()
 
         # Ensure username exists and password is correct
-        if len(rows) != 1 or not check_password_hash(rows[0]["hash"], request.form.get("password")):
+        if existing_user and check_password_hash(existing_user.hash, password):
+            # Save user in Flask Session
+            session["user_id"] = existing_user.id
+            return redirect("/")
+        
+        else:
             return apology("invalid username and/or password", 403)
-
-        # Remember which user has logged in
-        session["user_id"] = rows[0]["id"]
-
-        # Redirect user to home page
-        return redirect("/")
 
     # User reached route via GET (as by clicking a link or via redirect)
     else:
@@ -310,16 +311,16 @@ def register():
         INITIAL_DEPOSIT = 10000
         
         try:
-            db.execute("START TRANSACTION")
-            # Insert new user in users table
-            userId = db.execute("INSERT INTO users (username, hash, cash) VALUES (?, ?, ?)",
-                                username, hashPassword, INITIAL_DEPOSIT)
-            # Insert row in transaction table to indicate the initial deposit (0 shares to indicate DEPOSIT)
-            db.execute("INSERT INTO transactions (shares, symbol, price, user_id) VALUES (?, ?, ?, ?)",
-                   0, '', INITIAL_DEPOSIT, userId)
-            db.execute("COMMIT")
+            # Create new user and initial deposit transaction
+            new_user = User(username=username, hash=hashPassword, cash=INITIAL_DEPOSIT)
+            initial_deposit = Transaction("", 0, INITIAL_DEPOSIT)
+            new_user.transactions.append(initial_deposit)
+
+            db.session.add(new_user)
+            db.session.commit()
+
         except:
-            db.execute("ROLLBACK")
+            db.session.rollback()
             return apology("username already exists!", 400)
 
         return render_template("login.html")

@@ -15,7 +15,7 @@ def init_app():
     with app.app_context():
         from . import routes  # Import routes 
         from . import models # Import models
-        db.drop_all()
+        # db.drop_all()
         db.create_all()  # Create SQL tables for our data models
 
         return app
