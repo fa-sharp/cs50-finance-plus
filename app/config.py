@@ -1,12 +1,9 @@
 """Flask config variables."""
 from application import db
-from os import environ, path
+from os import environ
 from dotenv import load_dotenv
-from tempfile import mkdtemp
 
-basedir = path.abspath(path.dirname(__file__))
-load_dotenv(path.join(basedir, '.env'))
-
+load_dotenv()
 
 class Config:
     """Set Flask configuration from .env file."""
