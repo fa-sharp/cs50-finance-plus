@@ -1,7 +1,5 @@
 from decimal import Decimal
-import os
 import json
-from cs50 import SQL
 from flask import flash, redirect, render_template, request, session
 from sqlalchemy import func
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
@@ -10,8 +8,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from . import db
 from flask import current_app as app
 from application.models import Stock, Transaction, User
-from application.helpers import apology, login_required, lookup
-from application.jinja_filters import usd, cash_flow, commas, percent
+from application.utils import apology, login_required, lookup
+
 
 # Ensure responses aren't cached
 @app.after_request
@@ -21,19 +19,6 @@ def after_request(response):
     response.headers["Pragma"] = "no-cache"
     return response
 
-# Custom Jinja filters
-app.jinja_env.filters["usd"] = usd
-app.jinja_env.filters["cash_flow"] = cash_flow
-app.jinja_env.filters["commas"] = commas
-app.jinja_env.filters["percent"] = percent
-
-# Get Postgres connection string
-postgres_url = os.environ.get("POSTGRES_URL")
-if postgres_url is None:
-    raise RuntimeError("POSTGRES_URL not set")
-
-# Configure CS50 Library to use Postgres database
-# db = SQL(postgres_url)
 
 @app.route("/")
 @login_required

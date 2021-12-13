@@ -5,12 +5,13 @@ from sqlalchemy import Integer, String, Text, Numeric, ForeignKey, DateTime
 from sqlalchemy.sql.functions import current_timestamp
 from sqlalchemy.orm import relationship
 
+
 class User(db.Model):
 
     def __init__(self, username: str, hash: str, cash: float):
-        self.username=username
-        self.hash=hash
-        self.cash=cash
+        self.username = username
+        self.hash = hash
+        self.cash = cash
 
     id = db.Column(Integer, primary_key=True, nullable=False)
 
@@ -22,7 +23,7 @@ class User(db.Model):
 
     portfolio = relationship(
         'Stock', backref='user', lazy=True, cascade="all, delete", passive_deletes=True, order_by="Stock.symbol")
-    
+
     transactions = relationship(
         'Transaction', backref='user', lazy=True, cascade="all, delete", passive_deletes=True)
 
@@ -49,12 +50,13 @@ class Stock(db.Model):
 
     user_id = db.Column(Integer, ForeignKey(
         'user.id', ondelete="CASCADE"), nullable=False)
-    
+
     basis_transactions = db.relationship(
         'Transaction', lazy=True, passive_deletes=True)
 
     def __repr__(self):
         return '<Stock %i: %i shares of %r>' % self.id % self.shares % self.symbol
+
 
 class Transaction(db.Model):
 
@@ -73,11 +75,12 @@ class Transaction(db.Model):
 
     price = db.Column(Numeric(scale=4, precision=20), nullable=False)
 
-    timestamp = db.Column(DateTime(), nullable=False, server_default=current_timestamp())
+    timestamp = db.Column(DateTime(), nullable=False,
+                          server_default=current_timestamp())
 
     user_id = db.Column(Integer, ForeignKey(
         'user.id', ondelete="CASCADE"), nullable=False)
-    
+
     stock_id = db.Column(Integer, ForeignKey(
         'stock.id', ondelete="SET NULL"), nullable=True)
 

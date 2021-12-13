@@ -18,12 +18,12 @@ class Config:
 
     # Database
     SQLALCHEMY_DATABASE_URI = environ.get("POSTGRES_URL")
-    SQLALCHEMY_ECHO = True
+    SQLALCHEMY_ECHO = True if FLASK_ENV == "development" else False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Flask Session
-    SESSION_SQLALCHEMY = db
     SESSION_TYPE = "sqlalchemy"
+    SESSION_SQLALCHEMY = db
     PERMANENT_SESSION_LIFETIME = 60 * 60 * 24 # one day
 
     # IEX (Stock data) API key https://iextrading.com/developer
