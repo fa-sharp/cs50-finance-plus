@@ -9,7 +9,7 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     volumes:
-      - $PWD/local-postgres/:/var/lib/postgresql/data:z
+      - $PWD/.local-postgres/:/var/lib/postgresql/data:z
 
   adminer:
     image: adminer

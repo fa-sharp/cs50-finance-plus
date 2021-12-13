@@ -75,7 +75,7 @@ class Transaction(db.Model):
 
     price = db.Column(Numeric(scale=4, precision=20), nullable=False)
 
-    timestamp = db.Column(DateTime(), nullable=False,
+    timestamp = db.Column(DateTime(), nullable=False, index=True,
                           server_default=current_timestamp())
 
     user_id = db.Column(Integer, ForeignKey(
