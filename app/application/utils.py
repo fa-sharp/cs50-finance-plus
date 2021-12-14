@@ -1,3 +1,4 @@
+from typing import Tuple
 import requests
 import urllib.parse
 
@@ -66,3 +67,31 @@ def lookup(symbol):
         return None
 
 
+def check_valid_password(password: str) -> Tuple[bool, str]:
+    '''Check if a password is valid (has 8 characters, has at least one lowercase, uppercase, and digit,
+    and no spaces). Returns a tuple: first element is a boolean of whether this is a valid password. Second
+    element is a user-friendly message'''
+    if len(password) < 8:
+        return (False, "Password must be at least 8 characters!")
+
+    lower, upper, digits, spaces = 0, 0, 0, 0
+    for c in password:
+        if c.islower():  # count lowercase letters
+            lower += 1
+        elif c.isupper():  # count uppercase letters
+            upper += 1
+        elif c.isspace(): # count spaces
+            spaces += 1
+        elif c.isdigit():  # count digits
+            digits+=1
+    
+    if spaces > 0:
+        return (False, "No spaces allowed in password!")
+    elif lower < 1:
+        return (False, "Password must have at least one lowercase letter!")
+    elif upper < 1:
+        return (False, "Password must have at least one uppercase letter!")
+    elif digits < 1:
+        return (False, "Password must have at least one digit!")
+    else:
+        return (True, "Valid password!")

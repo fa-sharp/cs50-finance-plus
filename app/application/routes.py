@@ -7,7 +7,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from . import db
 from flask import current_app as app
 from application.models import Stock, Transaction, User
-from application.utils import apology, login_required, lookup
+from application.utils import apology, check_valid_password, login_required, lookup
 
 
 # Ensure responses aren't cached
@@ -283,11 +283,16 @@ def register():
             return apology("must provide username", 400)
 
         # Ensure password was submitted
-        elif not password:
+        if not password:
             return apology("must provide password", 400)
+        
+        # Check if password is valid
+        valid_tuple = check_valid_password(password)
+        if not valid_tuple[0]:
+            return apology(valid_tuple[1], 400)
 
         # Ensure password == confirmation
-        elif not password == request.form.get("confirmation"):
+        if not password == request.form.get("confirmation"):
             return apology("passwords must match", 400)
 
         hashPassword = generate_password_hash(password)
