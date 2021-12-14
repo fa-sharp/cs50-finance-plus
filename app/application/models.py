@@ -32,7 +32,7 @@ class User(db.Model):
     #     return sum(tx.price for tx in self.transactions)
 
     def __repr__(self):
-        return '<User %i: %r>' % self.id % self.username
+        return '<User #%i: %r>' % (self.id, self.username)
 
 
 class Stock(db.Model):
@@ -49,13 +49,13 @@ class Stock(db.Model):
     shares = db.Column(Integer(), nullable=False)
 
     user_id = db.Column(Integer, ForeignKey(
-        'user.id', ondelete="CASCADE"), nullable=False)
+        'user.id', ondelete="CASCADE"), index=True, nullable=False)
 
     basis_transactions = db.relationship(
         'Transaction', lazy=True, passive_deletes=True)
 
     def __repr__(self):
-        return '<Stock %i: %i shares of %r>' % self.id % self.shares % self.symbol
+        return '<Stock #%i: %i %r>' % (self.id, self.shares, self.symbol)
 
 
 class Transaction(db.Model):
@@ -75,14 +75,14 @@ class Transaction(db.Model):
 
     price = db.Column(Numeric(scale=4, precision=20), nullable=False)
 
-    timestamp = db.Column(DateTime(), nullable=False, index=True,
+    timestamp = db.Column(DateTime(), index=True, nullable=False,
                           server_default=current_timestamp())
 
     user_id = db.Column(Integer, ForeignKey(
-        'user.id', ondelete="CASCADE"), nullable=False)
+        'user.id', ondelete="CASCADE"), index=True, nullable=False)
 
     stock_id = db.Column(Integer, ForeignKey(
         'stock.id', ondelete="SET NULL"), nullable=True)
 
     def __repr__(self):
-        return '<Tx %i: %i shares of %r at %f>' % self.id % self.shares % self.symbol % self.price
+        return '<Tx #%i: %i %r at $%r>' % (self.id, self.shares, self.symbol, self.price)

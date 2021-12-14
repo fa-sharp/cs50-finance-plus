@@ -1,5 +1,4 @@
 from decimal import Decimal
-import json
 from flask import flash, redirect, render_template, request, session
 from sqlalchemy import func
 from werkzeug.exceptions import default_exceptions, HTTPException, InternalServerError
@@ -33,7 +32,7 @@ def index():
                     filter(Transaction.user_id == user.id, Transaction.shares == 0).\
                     scalar()
 
-    # To calculate portfolio's current total market value, we start with the user's cash balance, and add all stock values below
+    # To calculate portfolio's total market value, we start with the user's cash balance, and add all stock values below
     pfTotalMarketValue = user.cash
     
     returned_portfolio = []
@@ -43,7 +42,7 @@ def index():
         stockData = lookup(stock['symbol'])
         stock.update(stockData)
 
-        # Calculate total current value (price * shares)
+        # Calculate stock's current value (current price * shares)
         stock['value'] = Decimal(stockData['price'] * stock['shares'])
         pfTotalMarketValue += stock['value'] # Add stock value to the total market value calculation
 
@@ -201,8 +200,7 @@ def login():
     """Log user in"""
 
     # Forget any user_id
-    if session.get("user_id") is not None:
-        session.pop("user_id")
+    session.pop("user_id", None)
 
     if request.method == "POST":
 
@@ -239,10 +237,8 @@ def logout():
     """Log user out"""
 
     # Forget session data
-    if session.get("user_id") is not None:
-        session.pop("user_id")
-    if session.get("start_balances") is not None:
-        session.pop("start_balances")
+    session.pop("user_id", None)
+    session.pop("start_balances", None)
 
     # Redirect user to login form
     return redirect("/")
