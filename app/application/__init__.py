@@ -19,7 +19,7 @@ def init_app():
         for filter in [cash_flow, commas, percent, usd]:
             app.jinja_env.filters[filter.__name__] = filter
         
-        ####### db.drop_all() # Drop DB tables, if needed
-        db.create_all()  # Create DB tables for our data models
+        ####### db.drop_all() # Drop DB tables (if needed)
+        ####### db.create_all()  # Create DB tables based on models.py (if needed)
 
         return app
