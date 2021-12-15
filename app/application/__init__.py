@@ -13,7 +13,7 @@ def init_app():
     Session(app) # Initialize Flask-Session
 
     with app.app_context():
-        from . import routes  # Import routes 
+        from . import create_routes  # Import routes 
         from . import models # Import models
         from .jinja_filters import cash_flow, commas, percent, usd # Import and apply Jinja filters
         for filter in [cash_flow, commas, percent, usd]:

@@ -1,5 +1,4 @@
 from decimal import Decimal
-from sqlalchemy.ext.hybrid import hybrid_property
 from . import db
 from sqlalchemy import Integer, String, Text, Numeric, ForeignKey, DateTime
 from sqlalchemy.sql.functions import current_timestamp
@@ -24,8 +23,9 @@ class User(db.Model):
     portfolio = relationship(
         'Stock', backref='user', lazy=True, cascade="all, delete", passive_deletes=True, order_by="Stock.symbol")
 
-    transactions = relationship(
-        'Transaction', backref='user', lazy=True, cascade="all, delete", passive_deletes=True)
+    # Don't need the following (as of yet) so commenting out to prevent unnecessary fetching
+    # transactions = relationship(
+    #     'Transaction', backref='user', lazy=True, cascade="all, delete", passive_deletes=True)
 
     # @hybrid_property
     # def cash_basis(self):
