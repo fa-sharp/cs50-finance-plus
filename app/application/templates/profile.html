@@ -22,15 +22,16 @@
         <button class="btn btn-primary" type="submit">Change Password</button>
     </form>
     <br />
+    <br />
     <h4>Delete Profile</h4>
     <p>Delete your profile and all of your data. WARNING: there is no going back!!</p>
     <form action="/profile/deleteProfile" method="post">
         <div class="form-group">
-            <label for="confirmCheck">Yes, please delete</label>
+            <label for="confirmCheck">Yes, please delete: </label>
             <input id="confirmCheck" name="confirmCheck" type="checkbox" value="yes">
         </div>
         <div class="form-group">
-            <input class="form-control" name="confirmText" placeholder="Type 'DELETE'">
+            <input class="form-control" name="confirmText" placeholder="Type 'DELETE'" autocomplete="off">
         </div>
         <button class="btn btn-danger" type="submit">Delete Profile</button>
     </form>

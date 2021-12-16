@@ -16,6 +16,8 @@
                 <th>Price</th>
                 <th>Day Change</th>
                 <th>Market Value</th>
+                <th>Cost Basis</th>
+                <th>Gain/Loss</th>
             </tr>
         </thead>
         <tbody>
@@ -30,10 +32,11 @@
                     </td>
                     <td><abbr title="{{ stock.name }}">{{ stock.symbol }}</abbr></td>
                     <td>{{ stock.shares | commas }}</td>
-                    <td><abbr title="Low {{ stock.low | usd if stock.low }}, High {{ stock.high | usd if stock.high }}">
-                            {{ stock.price | usd }}</abbr></td>
+                    <td>{{ stock.price | usd }}</td>
                     <td>{{ stock.dayChange | cash_flow }} ({{ stock.percentChange | percent }})</td>
                     <td>{{ stock.value | usd }}</td>
+                    <td>{{ stock.costBasis | usd }}</td>
+                    <td>{{ stock.gainLoss | cash_flow }}</td>
                 </tr>
             {% endfor %}
             <tr>
@@ -45,6 +48,8 @@
                 <td />
                 <td />
                 <td>{{ cash | usd }}</td>
+                <td>{{ cash | usd }}</td>
+                <td />
             </tr>
             <tr>
                 <td />
@@ -53,10 +58,12 @@
                 <td />
                 <td>{{ portfolio | sum(attribute='dayChange') | cash_flow }}</td>
                 <td><b>{{ totalMarketValue | usd }}</b></td>
+                <td>{{ portfolio | sum(attribute='costBasis', start=cash) | usd }}</td>
+                <td>{{ portfolio | sum(attribute='gainLoss') | cash_flow }}</td>
             </tr>
         </tbody>
     </table>
     <br />
-    <p>Your portfolio's total Gain/Loss is <b>{{ totalGainLoss | cash_flow }}</b></p>
+    <p>Your portfolio's total (Realized + Unrealized) Gain/Loss is <b>{{ totalGainLoss | cash_flow }}</b></p>
     </form>
 {% endblock %}
