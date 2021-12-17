@@ -15,8 +15,8 @@ def init_app():
     with app.app_context():
         from . import create_routes  # Import routes 
         from . import models # Import models
-        from .jinja_filters import cash_flow, commas, percent, usd # Import and apply Jinja filters
-        for filter in [cash_flow, commas, percent, usd]:
+        from .jinja_filters import filters # Import and apply Jinja filters
+        for filter in filters:
             app.jinja_env.filters[filter.__name__] = filter
         
         ####### db.drop_all() # Drop DB tables (if needed)

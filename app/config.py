@@ -17,6 +17,8 @@ class Config:
     SQLALCHEMY_DATABASE_URI = environ.get("POSTGRES_URL")
     SQLALCHEMY_ECHO = True if FLASK_ENV == "development" else False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    if SQLALCHEMY_DATABASE_URI is None or not SQLALCHEMY_DATABASE_URI.startswith("postgresql://"):
+        raise RuntimeError("POSTGRES_URL environment variable not properly set! Make sure it's set to your Postgres DB URL and starts with 'postgresql://'")
     
     # Flask Session
     SESSION_TYPE = "sqlalchemy"
@@ -25,3 +27,5 @@ class Config:
 
     # IEX (Stock data) API key https://iextrading.com/developer
     API_KEY = environ.get("API_KEY")
+    if API_KEY is None:
+        raise RuntimeError("API_KEY environment variable not set: Make sure to set up your API key from IEX!")

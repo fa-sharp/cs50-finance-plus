@@ -52,7 +52,7 @@ class Stock(db.Model):
         'user.id', ondelete="CASCADE"), index=True, nullable=False)
 
     basis_transactions = db.relationship(
-        'Transaction', lazy=True, passive_deletes=True)
+        'Transaction', lazy=False, passive_deletes=True, order_by="Transaction.timestamp")
 
     def __repr__(self):
         return '<Stock #%i: %i %r>' % (self.id, self.shares, self.symbol)

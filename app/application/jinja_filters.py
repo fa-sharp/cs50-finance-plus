@@ -38,3 +38,6 @@ def percent(value):
             return Markup(f"<span class='positive'>+{value:.2%}</span>")
     except:
         return value
+
+
+filters = (commas, usd, cash_flow, percent)
