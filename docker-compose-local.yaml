@@ -17,6 +17,15 @@ services:
     restart: always
     ports:
       - "127.0.0.1:8080:8080"
+  
+  app:
+    build:
+      context: .
+    ports:
+      - "127.0.0.1:5000:5000"
+    environment:
+      - API_KEY=chsjkv9r01qr5oci2rf0chsjkv9r01qr5oci2rfg
+      - POSTGRES_URL=postgresql://db:5432/finance?user=postgres&password=pgfinance
 
 volumes:
   postgres:
