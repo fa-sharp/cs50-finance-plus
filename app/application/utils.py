@@ -56,17 +56,23 @@ def lookup(symbol):
     try:
         quote = quote_response.json()
         company = company_response.json()
-        return {
+        data = {
             "name": company["name"],
             "price": float(quote["c"]),
             "symbol": company["ticker"],
             "priceChange": quote['d'],
-            "percentChange": quote['dp'],
+            "percentChange": quote['dp'] / 100,
             "open": quote['o'],
             "low": quote['l'],
             "high": quote['h'],
             "lastUpdate": quote['t']
         }
+        if "logo" in company:
+            data["logoUrl"] = company['logo']
+        if "weburl" in company:
+            data['url'] = company['weburl']
+
+        return data
     except (KeyError, TypeError, ValueError):
         return None
 

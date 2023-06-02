@@ -16,6 +16,9 @@
     {% if symbol and name and price %}
     <form>
         <br>
+        {% if logoUrl %}
+            <img src="{{ logoUrl }}" alt="{{ name }} logo" />
+        {% endif %}
         <h3>{{ name }}</h3>
         <p>Current price: {{ price | usd }} per share</p>
         <button type="submit" formaction="/buy" class="btn btn-success" name="symbol"

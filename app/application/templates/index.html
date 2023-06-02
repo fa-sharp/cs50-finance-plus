@@ -11,6 +11,7 @@
         <thead>
             <tr>
                 <th>Action</th>
+                <th>Logo</th>
                 <th>Symbol</th>
                 <th>Shares</th>
                 <th>Price</th>
@@ -30,6 +31,11 @@
                         <button type="submit" formaction="/sell" class="btn btn-danger" name="symbol"
                             value={{ stock.symbol }}>Sell</button>
                     </td>
+                    <td>
+                        {% if 'logoUrl' in stock %}
+                            <img src="{{ stock.logoUrl }}" height="50" />
+                        {% endif %}
+                    </td>
                     <td><abbr title="{{ stock.name }}">{{ stock.symbol }}</abbr></td>
                     <td>{{ stock.shares | commas }}</td>
                     <td>{{ stock.price | usd }}</td>
@@ -43,6 +49,7 @@
                 <td>
                     <button type="submit" formaction="/deposit" class="btn btn-success">Deposit</button>
                 </td>
+                <td />
                 <td>Cash</td>
                 <td />
                 <td />
@@ -52,6 +59,7 @@
                 <td />
             </tr>
             <tr>
+                <td />
                 <td />
                 <td><b>TOTAL</b></td>
                 <td />

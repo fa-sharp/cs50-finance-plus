@@ -26,5 +26,7 @@ def quote():
     else:
         price = stockData.get("price")
         name = stockData.get("name")
+        logoUrl = stockData.get("logoUrl")
+        url = stockData.get("url")
 
-    return render_template("quote.html", symbol=symbol, price=price, name=name)
+    return render_template("quote.html", symbol=symbol, price=price, name=name, logoUrl=logoUrl, url=url)

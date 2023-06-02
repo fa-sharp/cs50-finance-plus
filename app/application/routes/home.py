@@ -25,8 +25,10 @@ def home():
         scalar()
 
     # Fetch and calculate updated portfolio data
-    returned_portfolio, total_market_value, total_gain_loss = get_portfolio_data(
-        user, initial_cash_basis)
+    portfolio_data = get_portfolio_data(user, initial_cash_basis)
+    if not portfolio_data:
+        return apology("error getting stock data. please try again later.")
+    returned_portfolio, total_market_value, total_gain_loss = portfolio_data
 
     # Pass portfolio, cash, and totals to Jinja
     return render_template("index.html", portfolio=returned_portfolio,
@@ -46,7 +48,7 @@ def get_portfolio_data(user: User, initial_cash_basis):
         stock = vars(stock_row)
         stockData = lookup(stock['symbol'])
         if not stockData:
-            return apology("error getting stock data. please try again later.")
+            return None
         stock.update(stockData)
 
         # Calculate stock's current value (current price * shares)
