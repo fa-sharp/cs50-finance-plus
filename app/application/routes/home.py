@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, session
 from sqlalchemy import func
 
 from application.models import Transaction, User
-from application.utils import login_required, lookup
+from application.utils import login_required, lookup, apology
 
 
 home_page = Blueprint('home_page', __name__)
@@ -45,6 +45,8 @@ def get_portfolio_data(user: User, initial_cash_basis):
         # Create a dict which will hold updated stock data
         stock = vars(stock_row)
         stockData = lookup(stock['symbol'])
+        if not stockData:
+            return apology("error getting stock data. please try again later.")
         stock.update(stockData)
 
         # Calculate stock's current value (current price * shares)

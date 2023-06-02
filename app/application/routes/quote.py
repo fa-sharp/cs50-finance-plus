@@ -22,7 +22,7 @@ def quote():
 
     stockData = lookup(symbol)
     if not stockData:
-        return apology("not a valid stock symbol", 400)
+        return apology("error getting stock price", 400)
     else:
         price = stockData.get("price")
         name = stockData.get("name")

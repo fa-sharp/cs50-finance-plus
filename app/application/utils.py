@@ -43,25 +43,29 @@ def lookup(symbol):
     # Contact API
     try:
         api_key = current_app.config["API_KEY"]
-        url = f"https://cloud.iexapis.com/stable/stock/{urllib.parse.quote_plus(symbol)}/quote?token={api_key}"
-        response = req.get(url)
-        response.raise_for_status()
+        quote_url = f"https://finnhub.io/api/v1/quote?symbol={urllib.parse.quote_plus(symbol)}&token={api_key}"
+        quote_response = req.get(quote_url)
+        quote_response.raise_for_status()
+        company_url = f"https://finnhub.io/api/v1/stock/profile2?symbol={urllib.parse.quote_plus(symbol)}&token={api_key}"
+        company_response = req.get(company_url)
+        company_response.raise_for_status()
     except requests.RequestException:
         return None
 
     # Parse response
     try:
-        quote = response.json()
+        quote = quote_response.json()
+        company = company_response.json()
         return {
-            "name": quote["companyName"],
-            "price": float(quote["latestPrice"]),
-            "symbol": quote["symbol"],
-            "priceChange": quote['change'],
-            "percentChange": quote['changePercent'],
-            "open": quote['open'],
-            "low": quote['low'],
-            "high": quote['high'],
-            "lastUpdate": quote['latestUpdate']
+            "name": company["name"],
+            "price": float(quote["c"]),
+            "symbol": company["ticker"],
+            "priceChange": quote['d'],
+            "percentChange": quote['dp'],
+            "open": quote['o'],
+            "low": quote['l'],
+            "high": quote['h'],
+            "lastUpdate": quote['t']
         }
     except (KeyError, TypeError, ValueError):
         return None
